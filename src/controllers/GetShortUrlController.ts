@@ -13,6 +13,7 @@ const GetShortUrlController = async (req: Request, res: Response, next?: NextFun
         // Parse query parameters
         const query = req.query;
         const queryCode = query.code as string;
+        const redirect = (query.redirect) === 'true';
 
         if (!queryCode) throw new Error('NO_CODE_IN_QUERY');
 
@@ -40,6 +41,12 @@ const GetShortUrlController = async (req: Request, res: Response, next?: NextFun
         // Store latest update to URL entry in DB
         await redis.set(`${REDIS_PREFIX_HASH}:${urlEntry.hash}`, JSON.stringify(urlEntry));
 
+        // Does user want to be redirected?
+        if (redirect) {
+            res.redirect(urlEntry.url);
+            return;
+        }
+        
         // Send back URL to user
         res.json({ url });
 
