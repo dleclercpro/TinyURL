@@ -1,43 +1,50 @@
 import { NextFunction, Request, Response } from 'express';
 import redis from '../utils/redis';
 import logger from '../utils/logger';
-import { UrlEntry } from '../types/CommonTypes';
+import { createUrlEntry, getUrlEntry, REDIS_PREFIX_CODE, REDIS_PREFIX_HASH, REDIS_PREFIX_ID } from '../utils/db';
 
-const CreateUrlEntry = async (req: Request, res: Response, next?: NextFunction) => {
+
+
+const CreateUrlEntryController = async (req: Request, res: Response, next?: NextFunction) => {    
     try {
-        const query = req.query;
+        const now = new Date();
 
         // Parse query parameters
-        const url = query.url as string;
+        const query = req.query;
+        const queryUrl = query.url as string;
 
-        if (!url) {
-            throw new Error('NO_URL');
+        if (!queryUrl) throw new Error('NO_URL_IN_QUERY');
+
+        // Re-construct URL entry
+        let urlEntry = await getUrlEntry(queryUrl);
+
+        // Couldn't find a corresponding URL entry: create a new one
+        if (!urlEntry) {
+            logger.info(`Creating tiny URL for: ${queryUrl}`);
+
+            urlEntry = await createUrlEntry(queryUrl);
+
+            // Define meta data
+            urlEntry.createdAt = now;
         }
 
-        logger.info(`Creating short URL for: ${url}`);
+        // Update meta data
+        urlEntry.lastUsedAt = now;
+        urlEntry.count += 1;
 
-        // Find a unique short code for URL
-        const urlEntry: UrlEntry = {
-            url,
-            id: '',
-            short: '',
-            createdAt: null,
-            lastUsedAt: null,
-            count: 0,
-            isActive: true,
-        };
-        
-        while (urlEntry.short == '') {
-            urlEntry.short = 'TEST';
+        // Show in console
+        logger.debug(JSON.stringify(urlEntry, null, 2));
 
-            // Ensure short code doesn't already already exists
-            if (await redis.get(urlEntry.short)) {
-                urlEntry.short = '';
-            }
+
+
+        // No need to overwrite ID and short code mappings in case they already exist
+        if (urlEntry.createdAt === now) {
+            await redis.set(`${REDIS_PREFIX_ID}:${urlEntry.id}`, '');
+            await redis.set(`${REDIS_PREFIX_CODE}:${urlEntry.code}`, urlEntry.url);
         }
 
-        // Store user in DB
-        await redis.set(urlEntry.short, JSON.stringify(urlEntry));
+        // Store latest update to URL entry in DB
+        await redis.set(`${REDIS_PREFIX_HASH}:${urlEntry.hash}`, JSON.stringify(urlEntry));
 
         // Send back URL entry to user
         res.json(urlEntry);
@@ -51,4 +58,4 @@ const CreateUrlEntry = async (req: Request, res: Response, next?: NextFunction) 
     }
 }
 
-export default CreateUrlEntry;
+export default CreateUrlEntryController;

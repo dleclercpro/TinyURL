@@ -1,9 +1,10 @@
 export interface UrlEntry {
     url: string,
     id: string,
-    short: string,
-    createdAt: Date | null,
-    lastUsedAt: Date | null,
+    hash: string,
+    code: string,
     count: number,
     isActive: boolean,
+    createdAt: Date | null,
+    lastUsedAt: Date | null,
 }
