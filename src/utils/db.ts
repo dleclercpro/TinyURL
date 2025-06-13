@@ -53,6 +53,12 @@ export const getUrlEntry = async (url: string) => {
 
 
 
+export const getUrlByCode = async (code: string) => {
+    return await redis.get(`${REDIS_PREFIX_CODE}:${code}`) || '';
+}
+
+
+
 export const createUrlEntry = async (url: string) => {
     const urlEntry = generateNewUrlEntry(url);
 

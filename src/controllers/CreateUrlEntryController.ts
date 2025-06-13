@@ -52,9 +52,16 @@ const CreateUrlEntryController = async (req: Request, res: Response, next?: Next
     } catch (err: unknown) {
         if (err instanceof Error) {
             logger.error(err.message);
-        }
 
-        res.sendStatus(500);
+            if (err.message === 'NO_URL_IN_QUERY') {
+                res.status(403);
+            }
+
+            res.status(400);
+            
+        } else {
+            res.sendStatus(500);
+        }
     }
 }
 
