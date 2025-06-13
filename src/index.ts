@@ -3,7 +3,7 @@ import { SERVER_ORIGIN, SERVER_PORT } from './config';
 import logging from './middleware/LoggingMiddleware';
 import logger from './utils/logger';
 import CreateUrlEntryController from './controllers/CreateUrlEntryController';
-import GetShortUrlController from './controllers/GetShortUrlController';
+import GetUrlController from './controllers/GetUrlController';
 
 const app = express();
 
@@ -16,7 +16,7 @@ app.use(logging);
 
 // API
 app.get('/new/', CreateUrlEntryController);
-app.get('/', GetShortUrlController);
+app.get('/', GetUrlController);
 
 
 

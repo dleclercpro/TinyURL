@@ -7,4 +7,5 @@ export interface UrlEntry {
     isActive: boolean,
     createdAt: Date | null,
     lastUsedAt: Date | null,
+    expiresAt: Date | null,
 }

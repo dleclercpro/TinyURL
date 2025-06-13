@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import redis from '../utils/redis';
 import logger from '../utils/logger';
 import { createUrlEntry, getUrlEntry, REDIS_PREFIX_CODE, REDIS_PREFIX_HASH, REDIS_PREFIX_ID } from '../utils/db';
+import { TTL_IN_MS } from '../config';
 
 
 
@@ -32,6 +33,9 @@ const CreateUrlEntryController = async (req: Request, res: Response, next?: Next
         urlEntry.lastUsedAt = now;
         urlEntry.count += 1;
 
+        // Tiny URL expires 24 hours from last use
+        urlEntry.expiresAt = new Date(Number(now) + TTL_IN_MS);
+
         // Show in console
         logger.debug(JSON.stringify(urlEntry, null, 2));
 
@@ -58,7 +62,7 @@ const CreateUrlEntryController = async (req: Request, res: Response, next?: Next
             }
 
             res.status(400);
-            
+
         } else {
             res.sendStatus(500);
         }

@@ -3,10 +3,11 @@ import redis from '../utils/redis';
 import logger from '../utils/logger';
 import { getUrlByCode, getUrlEntry, REDIS_PREFIX_HASH } from '../utils/db';
 import { UrlEntry } from '../types/CommonTypes';
+import { TTL_IN_MS } from '../config';
 
 
 
-const GetShortUrlController = async (req: Request, res: Response, next?: NextFunction) => {    
+const GetUrlController = async (req: Request, res: Response, next?: NextFunction) => {    
     try {
         const now = new Date();
 
@@ -35,11 +36,18 @@ const GetShortUrlController = async (req: Request, res: Response, next?: NextFun
         urlEntry.lastUsedAt = now;
         urlEntry.count += 1;
 
+        // Tiny URL expires 24 hours from last use
+        urlEntry.expiresAt = new Date(Number(now) + TTL_IN_MS);
+
+
+        
         // Show in console
         logger.debug(JSON.stringify(urlEntry, null, 2));
 
         // Store latest update to URL entry in DB
         await redis.set(`${REDIS_PREFIX_HASH}:${urlEntry.hash}`, JSON.stringify(urlEntry));
+
+
 
         // Does user want to be redirected?
         if (redirect) {
@@ -70,4 +78,4 @@ const GetShortUrlController = async (req: Request, res: Response, next?: NextFun
     }
 }
 
-export default GetShortUrlController;
+export default GetUrlController;

@@ -14,12 +14,13 @@ export const generateNewUrlEntry = (url: string): UrlEntry => {
     return {
         url,
         id: '',
-        hash: '',
+        hash: hashify(url),
         code: '',
         count: 0,
         isActive: true,
         createdAt: null,
         lastUsedAt: null,
+        expiresAt: null,
     };
 }
 
@@ -27,11 +28,8 @@ export const generateNewUrlEntry = (url: string): UrlEntry => {
 
 export const getUrlEntry = async (url: string) => {
     let urlEntry = generateNewUrlEntry(url);
-
-    // Try and find short URL in database
-    urlEntry.hash = hashify(url);
     
-    const key = `${REDIS_PREFIX_HASH}:${urlEntry.hash}`;
+    const key = `${REDIS_PREFIX_HASH}:${hashify(url)}`;
     const value = await redis.get(key) || '';
 
     // Look for all URL entries with same hash value in bucket
