@@ -6,7 +6,7 @@ import { TTL_IN_MS } from '../config';
 
 
 
-const CreateUrlEntryController = async (req: Request, res: Response, next?: NextFunction) => {    
+const FromUrlToCodeController = async (req: Request, res: Response, next?: NextFunction) => {    
     try {
         const now = new Date();
 
@@ -50,8 +50,8 @@ const CreateUrlEntryController = async (req: Request, res: Response, next?: Next
         // Store latest update to URL entry in DB
         await redis.set(`${REDIS_PREFIX_HASH}:${urlEntry.hash}`, JSON.stringify(urlEntry));
 
-        // Send back URL entry to user
-        res.json(urlEntry);
+        // Send back URL short code to user
+        res.json({ code: urlEntry.code });
 
     } catch (err: unknown) {
         if (err instanceof Error) {
@@ -69,4 +69,4 @@ const CreateUrlEntryController = async (req: Request, res: Response, next?: Next
     }
 }
 
-export default CreateUrlEntryController;
+export default FromUrlToCodeController;

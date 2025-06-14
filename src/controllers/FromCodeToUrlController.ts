@@ -7,7 +7,7 @@ import { TTL_IN_MS } from '../config';
 
 
 
-const GetUrlController = async (req: Request, res: Response, next?: NextFunction) => {    
+const FromCodeToUrlController = async (req: Request, res: Response, next?: NextFunction) => {    
     try {
         const now = new Date();
 
@@ -40,7 +40,7 @@ const GetUrlController = async (req: Request, res: Response, next?: NextFunction
         urlEntry.expiresAt = new Date(Number(now) + TTL_IN_MS);
 
 
-        
+
         // Show in console
         logger.debug(JSON.stringify(urlEntry, null, 2));
 
@@ -64,18 +64,21 @@ const GetUrlController = async (req: Request, res: Response, next?: NextFunction
 
             if (err.message === 'NO_CODE_IN_QUERY') {
                 res.sendStatus(403);
+                return;
             }
 
             if (err.message === 'INEXISTENT_CODE') {
                 res.sendStatus(404);
+                return;
             }
 
             res.status(400);
+            return;
 
-        } else {
-            res.sendStatus(500);
         }
+        
+        res.sendStatus(500);
     }
 }
 
-export default GetUrlController;
+export default FromCodeToUrlController;
