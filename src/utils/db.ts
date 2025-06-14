@@ -3,6 +3,7 @@ import redis from './redis';
 import { hashify } from './string';
 import { v4 as createUUID } from 'uuid';
 import { generateRandomAlphaNumericalString } from '../utils/string';
+import { SHORT_CODE_LENGTH } from '../config';
 
 export const REDIS_PREFIX_ID = 'id';
 export const REDIS_PREFIX_HASH = 'hash';
@@ -62,7 +63,7 @@ export const createUrlEntry = async (url: string) => {
 
     while (urlEntry.code === '') {
         urlEntry.id = createUUID();
-        urlEntry.code = generateRandomAlphaNumericalString(8);
+        urlEntry.code = generateRandomAlphaNumericalString(SHORT_CODE_LENGTH);
 
         // Ensure both ID and short code don't already exist
         const idExists = Boolean(await redis.get(`${REDIS_PREFIX_ID}:${urlEntry.id}`));
