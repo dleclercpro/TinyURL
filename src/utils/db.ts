@@ -30,7 +30,7 @@ export const generateNewUrlEntry = (url: string): UrlEntry => {
 export const getUrlEntry = async (url: string) => {
     let urlEntry = generateNewUrlEntry(url);
     
-    const key = `${REDIS_PREFIX_HASH}:${hashify(url)}`;
+    const key = `${REDIS_PREFIX_HASH}:${urlEntry.hash}`;
     const value = await redis.get(key) || '';
 
     // Look for all URL entries with same hash value in bucket
@@ -65,7 +65,7 @@ export const createUrlEntry = async (url: string) => {
         urlEntry.id = createUUID();
         urlEntry.code = generateRandomAlphaNumericalString(SHORT_CODE_LENGTH);
 
-        // Ensure both ID and short code don't already exist
+        // Ensure both URL ID and short code are unique
         const idExists = Boolean(await redis.get(`${REDIS_PREFIX_ID}:${urlEntry.id}`));
         const codeExists = Boolean(await redis.get(`${REDIS_PREFIX_CODE}:${urlEntry.code}`));
         
