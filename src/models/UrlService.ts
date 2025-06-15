@@ -3,6 +3,7 @@ import RepositoryService from './RepositoryService';
 import CacheService from './CacheService';
 import ShortCodeGenerator from './ShortCodeGenerator';
 import logger from '../utils/logger';
+import UrlEntity from './UrlEntity';
 
 class UrlService {
     private repo = new RepositoryService();
@@ -38,21 +39,23 @@ class UrlService {
     }
 
     async registerUrl(url: string, code: string, now: Date) {
+        const createdAt = now;
+        const lastUsedAt = now;
         const expiresAt = new Date(now.getTime() + TTL_IN_MS);
 
-        return this.repo.upsert(code, {
+        // Define an initial URL entry, it will get updated correctly
+        // by the repository in case it already exists
+        const entity = new UrlEntity(
             url,
             code,
-            count: 0,
-            isActive: true,
-            createdAt: now,
-            lastUsedAt: now,
+            0,
+            true,
+            createdAt,
+            lastUsedAt,
             expiresAt,
-        }, {
-            count: { increment: 1 },
-            lastUsedAt: now,
-            expiresAt,
-        });
+        );
+
+        return this.repo.upsert(entity);
     }
 }
 

@@ -1,11 +1,9 @@
-import { UrlEntry } from '../types/CommonTypes';
+import { UrlRow } from '../types/CommonTypes';
 
-export const DUMMY_URL_ENTRY: UrlEntry = {
+export const DUMMY_URL_ROW: UrlRow = {
     url: 'https://www.apple.com',
-    id: 'dummy',
-    hash: '',
-    code: '',
-    count: 10,
+    code: '12345678',
+    count: 0,
     isActive: true,
     createdAt: new Date(0),
     lastUsedAt: new Date(0),
