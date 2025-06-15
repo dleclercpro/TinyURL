@@ -1,8 +1,9 @@
 import { NextFunction, Request, Response } from 'express';
 import redis from '../utils/redis';
 import logger from '../utils/logger';
-import { createUrlEntry, getUrlEntry, REDIS_PREFIX_CODE, REDIS_PREFIX_HASH, REDIS_PREFIX_ID } from '../utils/db';
+import { createUrlEntry, DB, getUrlEntry, REDIS_PREFIX_CODE, REDIS_PREFIX_HASH, REDIS_PREFIX_ID } from '../utils/db';
 import { TTL_IN_MS } from '../config';
+import { DatabaseUrlEntry } from '../types/CommonTypes';
 
 
 
@@ -45,9 +46,23 @@ const FromUrlToCodeController = async (req: Request, res: Response, next?: NextF
         if (urlEntry.createdAt === now) {
             await redis.set(`${REDIS_PREFIX_ID}:${urlEntry.id}`, '');
             await redis.set(`${REDIS_PREFIX_CODE}:${urlEntry.code}`, urlEntry.url);
+
+            // Store URL entry in database
+            const data: DatabaseUrlEntry = {
+                url: urlEntry.url,
+                id: urlEntry.id,
+                code: urlEntry.code,
+                count: urlEntry.count,
+                isActive: urlEntry.isActive,
+                createdAt: urlEntry.createdAt,
+                lastUsedAt: urlEntry.lastUsedAt,
+                expiresAt: urlEntry.expiresAt,
+            };
+            
+            await DB.url.create({ data });
         }
 
-        // Store latest update to URL entry in DB
+        // Store latest update to URL entry in cache
         await redis.set(`${REDIS_PREFIX_HASH}:${urlEntry.hash}`, JSON.stringify(urlEntry));
 
         // Send back URL short code to user

@@ -14,7 +14,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Environment variables
-.env
+# .env
 .env.*.local
 
 # IDEs and editors
@@ -31,3 +31,5 @@ Thumbs.db
 
 # Coverage from testing
 coverage/
+
+/src/generated/prisma

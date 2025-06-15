@@ -1,5 +1,6 @@
 import { UrlEntry } from '../types/CommonTypes';
 import redis from './redis';
+import { PrismaClient } from '@prisma/client';
 import { hashify } from './string';
 import { v4 as createUUID } from 'uuid';
 import { generateRandomAlphaNumericalString } from '../utils/string';
@@ -8,6 +9,8 @@ import { SHORT_CODE_LENGTH } from '../config';
 export const REDIS_PREFIX_ID = 'id';
 export const REDIS_PREFIX_HASH = 'hash';
 export const REDIS_PREFIX_CODE = 'code';
+
+export const DB = new PrismaClient();
 
 
 
