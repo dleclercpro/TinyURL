@@ -1,56 +1,34 @@
 import { NextFunction, Request, Response } from 'express';
 import logger from '../utils/logger';
-import { DB } from '../utils/db';
-import { TTL_IN_MS } from '../config';
-import redis, { REDIS_PREFIX_CODE } from '../utils/redis';
+import UrlService from '../models/UrlService';
 
 
 
 const FromCodeToUrlController = async (req: Request, res: Response, next?: NextFunction) => {    
     try {
-        const now = new Date();
+        const redirect = (req.query.redirect) === 'true';
 
-        // Parse query parameters
-        const query = req.query;
-        const queryCode = query.code as string;
-        const redirect = (query.redirect) === 'true';
-
+        const queryCode = req.query.code as string;
         if (!queryCode) throw new Error('NO_CODE_IN_QUERY');
 
+        const now = new Date();
 
-        // Check for existence of URL in store
-        const url = await redis.get(`${REDIS_PREFIX_CODE}:${queryCode}`);
+        const urlService = new UrlService();
+        const url = await urlService.getUrl(queryCode);
 
-        // Couldn't find a corresponding URL entry: error
-        if (!url) {
-            logger.error(`Tiny URL doesn't exist for: ${queryCode}`);
-
-            throw new Error('INEXISTENT_CODE');
-        }
-
-
-
-        // Show in console
+        // Log code to URL mapping
         logger.debug(`${queryCode} -> ${url}`);
 
-        // Does user want to be redirected?
+        // Redirect user first
         if (redirect) {
-            res.redirect(url);
-        } else {
-            res.json({ url });
+            return res.redirect(url);
         }
+        
+        // Or simply return the URL
+        res.json({ url });
 
-
-
-        // Update URL metadata in database
-        await DB.url.update({
-            where: { code: queryCode },
-            data: {
-                count: { increment: 1 },
-                lastUsedAt: now,
-                expiresAt: new Date(Number(now) + TTL_IN_MS),
-            },
-        });
+        // Then, update URL entry in database
+        await urlService.registerUrl(url, queryCode, now);
 
     } catch (err: unknown) {
         if (err instanceof Error) {
@@ -66,7 +44,7 @@ const FromCodeToUrlController = async (req: Request, res: Response, next?: NextF
                 return;
             }
 
-            res.status(400);
+            res.sendStatus(400);
             return;
 
         }

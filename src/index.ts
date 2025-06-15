@@ -4,7 +4,7 @@ import logging from './middleware/LoggingMiddleware';
 import logger from './utils/logger';
 import FromUrlToCodeController from './controllers/FromUrlToCodeController';
 import FromCodeToUrlController from './controllers/FromCodeToUrlController';
-import { DB } from './utils/db';
+import RepositoryService from './models/RepositoryService';
 
 const app = express();
 
@@ -25,10 +25,5 @@ app.get('/url', FromCodeToUrlController);
 app.listen(SERVER_PORT, async () => {
   logger.info(`Server listening on ${SERVER_ORIGIN}`);
 
-
-
-  // Show URLs
-  const urls = await DB.url.findMany();
-
-  logger.info(`# URLs: ${urls.length}`);
+  logger.info(`# URLs: ${await new RepositoryService().count()}`);
 });
