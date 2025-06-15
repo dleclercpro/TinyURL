@@ -2,6 +2,11 @@ import { createClient } from 'redis';
 import { REDIS_HOST, REDIS_PORT, REDIS_PROTOCOL } from '../config';
 import logger from './logger';
 
+export const REDIS_PREFIX_HASH = 'hash';
+export const REDIS_PREFIX_CODE = 'code';
+
+
+
 const redis = createClient({
     url: `${REDIS_PROTOCOL}://${REDIS_HOST}:${REDIS_PORT}`,
 });

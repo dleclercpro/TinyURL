@@ -31,5 +31,4 @@ app.listen(SERVER_PORT, async () => {
   const urls = await DB.url.findMany();
 
   logger.info(`# URLs: ${urls.length}`);
-  logger.info(`URLs: ${JSON.stringify(urls, null, 2)}`);
 });

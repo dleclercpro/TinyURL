@@ -1,9 +1,8 @@
 import { NextFunction, Request, Response } from 'express';
-import redis from '../utils/redis';
 import logger from '../utils/logger';
-import { getUrlByCode, getUrlEntry, REDIS_PREFIX_HASH } from '../utils/db';
-import { UrlEntry } from '../types/CommonTypes';
+import { DB } from '../utils/db';
 import { TTL_IN_MS } from '../config';
+import redis, { REDIS_PREFIX_CODE } from '../utils/redis';
 
 
 
@@ -20,7 +19,7 @@ const FromCodeToUrlController = async (req: Request, res: Response, next?: NextF
 
 
         // Check for existence of URL in store
-        const url = await getUrlByCode(queryCode);
+        const url = await redis.get(`${REDIS_PREFIX_CODE}:${queryCode}`);
 
         // Couldn't find a corresponding URL entry: error
         if (!url) {
@@ -29,34 +28,29 @@ const FromCodeToUrlController = async (req: Request, res: Response, next?: NextF
             throw new Error('INEXISTENT_CODE');
         }
 
-        // Re-construct URL entry
-        const urlEntry = await getUrlEntry(url) as UrlEntry;
-
-        // Update meta data
-        urlEntry.lastUsedAt = now;
-        urlEntry.count += 1;
-
-        // Tiny URL expires 24 hours from last use
-        urlEntry.expiresAt = new Date(Number(now) + TTL_IN_MS);
-
 
 
         // Show in console
-        logger.debug(JSON.stringify(urlEntry, null, 2));
-
-        // Store latest update to URL entry in DB
-        await redis.set(`${REDIS_PREFIX_HASH}:${urlEntry.hash}`, JSON.stringify(urlEntry));
-
-
+        logger.debug(`${queryCode} -> ${url}`);
 
         // Does user want to be redirected?
         if (redirect) {
-            res.redirect(urlEntry.url);
-            return;
+            res.redirect(url);
+        } else {
+            res.json({ url });
         }
-        
-        // Send back URL to user
-        res.json({ url });
+
+
+
+        // Update URL metadata in database
+        await DB.url.update({
+            where: { code: queryCode },
+            data: {
+                count: { increment: 1 },
+                lastUsedAt: now,
+                expiresAt: new Date(Number(now) + TTL_IN_MS),
+            },
+        });
 
     } catch (err: unknown) {
         if (err instanceof Error) {

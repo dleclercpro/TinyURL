@@ -1,9 +1,9 @@
 import { NextFunction, Request, Response } from 'express';
-import redis from '../utils/redis';
+import redis, { REDIS_PREFIX_CODE, REDIS_PREFIX_HASH } from '../utils/redis';
 import logger from '../utils/logger';
-import { createUrlEntry, DB, getUrlEntry, REDIS_PREFIX_CODE, REDIS_PREFIX_HASH, REDIS_PREFIX_ID } from '../utils/db';
-import { TTL_IN_MS } from '../config';
-import { DatabaseUrlEntry } from '../types/CommonTypes';
+import { DB } from '../utils/db';
+import { SHORT_CODE_LENGTH, TTL_IN_MS } from '../config';
+import { generateRandomAlphaNumericalString, hashify } from '../utils/string';
 
 
 
@@ -11,62 +11,93 @@ const FromUrlToCodeController = async (req: Request, res: Response, next?: NextF
     try {
         const now = new Date();
 
+        // Initialize short code to return
+        let code = '';
+
         // Parse query parameters
         const query = req.query;
         const queryUrl = query.url as string;
 
         if (!queryUrl) throw new Error('NO_URL_IN_QUERY');
 
-        // Re-construct URL entry
-        let urlEntry = await getUrlEntry(queryUrl);
+
+
+        // Try and find URL mapping in cache
+        const cacheKey = `${REDIS_PREFIX_HASH}:${hashify(queryUrl)}`;
+        const cacheValue = await redis.get(cacheKey) || '';
+
+        // Parse all URL mappings in hash bucket
+        // Bucket format: URL1|Code1,URL2|Code2
+        const bucketUrlMappings = cacheValue
+            .split(',')
+            .filter(x => x !== '')
+            .map(x => x.split('|')) as [string, string][];
+        
+        // If URL exists in hash bucket: store its code in entry
+        for (const [mappingUrl, mappingCode] of bucketUrlMappings) {
+            if (queryUrl === mappingUrl) {
+                code = mappingCode;
+            }
+        }
 
         // Couldn't find a corresponding URL entry: create a new one
-        if (!urlEntry) {
+        if (code === '') {
             logger.info(`Creating tiny URL for: ${queryUrl}`);
 
-            urlEntry = await createUrlEntry(queryUrl);
+            // Create URL entry in database
+            while (code === '') {
+                code = generateRandomAlphaNumericalString(SHORT_CODE_LENGTH);
 
-            // Define meta data
-            urlEntry.createdAt = now;
+                // Ensure both URL ID and short code are unique
+                const exists = Boolean(await redis.get(`${REDIS_PREFIX_CODE}:${code}`));
+
+                if (exists) {
+                    code = '';
+                }
+            }
+
+            // Set 'Code -> URL' mapping in cache
+            await redis.set(`${REDIS_PREFIX_CODE}:${code}`, queryUrl);
+
+            // Add 'Hash(URL) -> Code' mapping to corresponding bucket in cache
+            await redis.set(cacheKey, `${cacheValue === '' ? '' : cacheValue + ','}${queryUrl}|${code}`);
+        } else {
+            logger.info(`Code already exists for: ${queryUrl}`);  
         }
 
-        // Update meta data
-        urlEntry.lastUsedAt = now;
-        urlEntry.count += 1;
+
 
         // Tiny URL expires 24 hours from last use
-        urlEntry.expiresAt = new Date(Number(now) + TTL_IN_MS);
+        const expiresAt = new Date(Number(now) + TTL_IN_MS);
+
+
 
         // Show in console
-        logger.debug(JSON.stringify(urlEntry, null, 2));
+        logger.debug(`${queryUrl} -> ${code}`);
+
+        // Send back short code to user immediately
+        res.json({ code });
 
 
 
-        // No need to overwrite ID and short code mappings in case they already exist
-        if (urlEntry.createdAt === now) {
-            await redis.set(`${REDIS_PREFIX_ID}:${urlEntry.id}`, '');
-            await redis.set(`${REDIS_PREFIX_CODE}:${urlEntry.code}`, urlEntry.url);
-
-            // Store URL entry in database
-            const data: DatabaseUrlEntry = {
-                url: urlEntry.url,
-                id: urlEntry.id,
-                code: urlEntry.code,
-                count: urlEntry.count,
-                isActive: urlEntry.isActive,
-                createdAt: urlEntry.createdAt,
-                lastUsedAt: urlEntry.lastUsedAt,
-                expiresAt: urlEntry.expiresAt,
-            };
-            
-            await DB.url.create({ data });
-        }
-
-        // Store latest update to URL entry in cache
-        await redis.set(`${REDIS_PREFIX_HASH}:${urlEntry.hash}`, JSON.stringify(urlEntry));
-
-        // Send back URL short code to user
-        res.json({ code: urlEntry.code });
+        // Then, update/create URL entry in database
+        await DB.url.upsert({
+            where: { code },
+            create: {
+                url: queryUrl,
+                code,
+                count: 0,
+                isActive: true,
+                createdAt: now,
+                lastUsedAt: now,
+                expiresAt,
+            },
+            update: {
+                count: { increment: 1 },
+                lastUsedAt: now,
+                expiresAt,
+            },
+        });
 
     } catch (err: unknown) {
         if (err instanceof Error) {
