@@ -81,8 +81,6 @@ class UrlService {
     }
 
     async visit(entity: UrlEntity, now: Date = new Date()): Promise<void> {
-        logger.info(`Visiting: ${entity.code} -> ${entity.url}`);
-
         entity.touch(now);
 
         await this.cache.save(entity);
