@@ -32,6 +32,8 @@ class UrlService {
     }
 
     async getOrCreateCode(url: string): Promise<string> {
+        logger.info(`Getting short code for: ${url}`);
+
         let entity = await this.cache.findByUrl(url);
         
         if (!entity) {
@@ -57,6 +59,8 @@ class UrlService {
     }
 
     async getUrl(code: string): Promise<string> {
+        logger.info(`Creating URL for: ${code}`);
+
         let entity = await this.cache.findByCode(code);
         
         if (!entity) {
