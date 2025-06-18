@@ -12,8 +12,8 @@ export const REDIS_ORIGIN = `${REDIS_PROTOCOL}://${REDIS_HOST}:${REDIS_PORT}`;
 
 
 // Time
-export const DAY_IN_MS = 24 * 60 * 60 * 1_000;
-export const TTL_IN_MS = DAY_IN_MS;
+export const DAY_MS = 24 * 60 * 60 * 1_000;
+export const TTL_MS = DAY_MS;
 
 
 

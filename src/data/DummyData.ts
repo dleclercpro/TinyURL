@@ -1,11 +1,11 @@
-import { UrlRow } from '../types/CommonTypes';
+import UrlEntity from '../models/UrlEntity';
 
-export const DUMMY_URL_ROW: UrlRow = {
-    url: 'https://www.apple.com',
-    code: '12345678',
-    count: 0,
-    isActive: true,
-    createdAt: new Date(0),
-    lastUsedAt: new Date(0),
-    expiresAt: new Date(0),
-};
+export const DUMMY_URL_ENTITY: UrlEntity = new UrlEntity(
+    'https://www.apple.com',
+    '12345678',
+    0,
+    true,
+    new Date(0),
+    new Date(0),
+    new Date(0),
+);

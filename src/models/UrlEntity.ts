@@ -1,32 +1,29 @@
+import { TTL_MS } from "../config";
+
 class UrlEntity {
-  constructor(
-        readonly url: string,
-        readonly code: string,
-        readonly count: number,
-        readonly isActive: boolean,
-        readonly createdAt: Date,
-        readonly lastUsedAt: Date,
-        readonly expiresAt: Date,
+
+    constructor(
+        public readonly url: string,
+        public readonly code: string,
+        public count: number,
+        public isActive: boolean,
+        public readonly createdAt: Date,
+        public lastUsedAt: Date,
+        public expiresAt: Date,
     ) {}
 
-    hasExpired(): boolean {
-        return new Date() > this.expiresAt;
+    isExpired(now: Date = new Date()): boolean {
+        return now.getTime() > this.expiresAt.getTime();
     }
 
     isUsable(): boolean {
-        return this.isActive && !this.hasExpired();
+        return this.isActive && !this.isExpired();
     }
 
-    incrementUse(): UrlEntity {
-        return new UrlEntity(
-            this.url,
-            this.code,
-            this.count + 1,
-            this.isActive,
-            this.createdAt,
-            new Date(),
-            new Date(Date.now() + 24 * 60 * 60 * 1_000)
-        );
+    touch(now: Date = new Date()): void {
+        this.lastUsedAt = now;
+        this.expiresAt = new Date(now.getTime() + TTL_MS);
+        this.count += 1;
     }
 }
 

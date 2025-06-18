@@ -11,24 +11,19 @@ const FromCodeToUrlController = async (req: Request, res: Response, next?: NextF
         const queryCode = req.query.code as string;
         if (!queryCode) throw new Error('NO_CODE_IN_QUERY');
 
-        const now = new Date();
-
         const urlService = new UrlService();
         const url = await urlService.getUrl(queryCode);
 
         // Log code to URL mapping
         logger.debug(`${queryCode} -> ${url}`);
 
-        // Redirect user first
+        // Redirect user if they want to
         if (redirect) {
             return res.redirect(url);
         }
         
         // Or simply return the URL
         res.json({ url });
-
-        // Then, update URL entry in database
-        await urlService.registerUrl(url, queryCode, now);
 
     } catch (err: unknown) {
         if (err instanceof Error) {

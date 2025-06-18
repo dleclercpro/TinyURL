@@ -1,4 +1,4 @@
-import { TTL_IN_MS } from '../config';
+import { TTL_MS } from '../config';
 import RepositoryService from './RepositoryService';
 import CacheService from './CacheService';
 import ShortCodeGenerator from './ShortCodeGenerator';
@@ -10,52 +10,83 @@ class UrlService {
     private cache = new CacheService();
     private generator = new ShortCodeGenerator();
 
-    async getOrCreateShortCode(url: string): Promise<string> {
-        const cached = await this.cache.findCodeByUrl(url);
-        if (cached) return cached;
+    private async createShortCode(url: string): Promise<string> {
+        logger.info(`Creating short code for: ${url}`);
 
-        // Cache is cold: create code for URL
-        logger.info(`Creating tiny URL for: ${url}`);
-
+        const now = new Date();
+        const expiresAt = new Date(now.getTime() + TTL_MS);
+        
+        // Create new unique short code
         let code = '';
         do {
             code = this.generator.generate();
         } while (await this.cache.codeExists(code));
+        
+        // Create new URL entity
+        const entity = new UrlEntity(url, code, 1, true, now, now, expiresAt);
 
-        await this.cache.storeCodeToUrlMapping(code, url);
-        await this.cache.storeUrlToCodeMapping(url, code);
+        // Store in database only: cache will be warmed up on first read
+        await this.repo.create(entity);
 
         return code;
     }
 
-    async getUrl(code: string): Promise<string> {
-        const cached = await this.cache.findUrlByCode(code);
-        if (cached) return cached;
+    async getOrCreateCode(url: string): Promise<string> {
+        let entity = await this.cache.findByUrl(url);
+        
+        if (!entity) {
+            logger.info(`Cache is cold for URL: ${url}`);
 
-        // Cache is cold: URL was not tinyfied yet
-        logger.error(`Tiny URL doesn't exist for: ${code}`);
+            entity = await this.repo.findByUrl(url);
 
-        throw new Error('INEXISTENT_CODE');
+            if (!entity) {
+                logger.info(`DB is cold for URL: ${url}`);
+
+                const code = await this.createShortCode(url);
+                return code;
+            }
+
+            // Warm up cache
+            await this.cache.create(entity);
+        }
+
+        // Update meta data
+        await this.visit(entity);
+
+        return entity.code;
     }
 
-    async registerUrl(url: string, code: string, now: Date) {
-        const createdAt = now;
-        const lastUsedAt = now;
-        const expiresAt = new Date(now.getTime() + TTL_IN_MS);
+    async getUrl(code: string): Promise<string> {
+        let entity = await this.cache.findByCode(code);
+        
+        if (!entity) {
+            logger.info(`Cache is cold for code: ${code}`);
 
-        // Define an initial URL entry, it will get updated correctly
-        // by the repository in case it already exists
-        const entity = new UrlEntity(
-            url,
-            code,
-            0,
-            true,
-            createdAt,
-            lastUsedAt,
-            expiresAt,
-        );
+            entity = await this.repo.findByCode(code);
+            
+            if (!entity) throw new Error('INEXISTENT_CODE');
+            if (!entity.isUsable()) throw new Error('EXPIRED_OR_INACTIVE');
 
-        return this.repo.upsert(entity);
+            // Warm the cache
+            await this.cache.create(entity);
+            
+        } else {
+            if (!entity.isUsable()) throw new Error('EXPIRED_OR_INACTIVE');
+        }
+
+        // Update meta data
+        await this.visit(entity);
+
+        return entity.url;
+    }
+
+    async visit(entity: UrlEntity, now: Date = new Date()): Promise<void> {
+        logger.info(`Visiting: ${entity.code} -> ${entity.url}`);
+
+        entity.touch(now);
+
+        await this.cache.save(entity);
+        await this.repo.save(entity);
     }
 }
 
